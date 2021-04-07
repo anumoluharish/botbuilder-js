@@ -1902,7 +1902,7 @@ export class BotFrameworkAdapter
 
     private async startNamedPipeServer(pipeName: string): Promise<void> {
         this.namedPipeName = pipeName;
-        this.streamingServer = new NamedPipeServer(pipeName, this);
+        this.streamingServer = new NamedPipeServer(pipeName, this, false, true);
 
         try {
             await this.streamingServer.start();

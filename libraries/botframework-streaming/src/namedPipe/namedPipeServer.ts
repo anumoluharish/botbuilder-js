@@ -35,8 +35,13 @@ export class NamedPipeServer implements IStreamingTransportServer {
      * @param baseName The named pipe to connect to.
      * @param requestHandler Optional [RequestHandler](xref:botframework-streaming.RequestHandler) to process incoming messages received by this client.
      * @param autoReconnect Optional setting to determine if the client should attempt to reconnect automatically on disconnection events. Defaults to true.
+     * @param warnIfPipeUnavailable Optional setting to not throw EADDRINUSE errors. Defaults to false.
      */
-    public constructor(baseName: string, requestHandler?: RequestHandler, autoReconnect = true) {
+    public constructor(
+        baseName: string,
+        requestHandler?: RequestHandler,
+        autoReconnect = true,
+        private readonly warnIfPipeUnavailable = false) {
         if (!baseName) {
             throw new TypeError('NamedPipeServer: Missing baseName parameter');
         }
@@ -74,25 +79,44 @@ export class NamedPipeServer implements IStreamingTransportServer {
             this.disconnect();
         }
 
-        const incoming = new Promise((resolve) => {
+        const incoming = new Promise<void>((resolve, reject) => {
             this._incomingServer = createNodeServer((socket: INodeSocket): void => {
                 this._receiver.connect(new NamedPipeTransport(socket));
                 resolve();
             });
+
+            this._incomingServer.on('error', reject);
         });
 
-        const outgoing = new Promise((resolve) => {
+        const outgoing = new Promise<void>((resolve, reject) => {
             this._outgoingServer = createNodeServer((socket: INodeSocket): void => {
                 this._sender.connect(new NamedPipeTransport(socket));
                 resolve();
             });
+
+            this._outgoingServer.on('error', reject);
         });
 
         // These promises will only resolve when the underlying connection has terminated.
         // Anything awaiting on them will be blocked for the duration of the session,
         // which is useful when detecting premature terminations, but requires an unawaited
         // promise during the process of establishing the connection.
-        Promise.all([incoming, outgoing]);
+        Promise.all([incoming, outgoing]).catch((error) => {
+            // When iisnode spins up multiple node processes, they will attempt to connect to the same Named Pipe.
+            // The Named Pipe is already in use by the first running node process, which will throw a EADDRINUSE error.
+            // If this.warnIfPipeUnavailable is true, write to the console instead of rethrowing the error.
+            // The BotFrameworkAdapter configures its NamedPipeServer to warn instead of throw as the only official
+            // Named Pipe usage is for Direct Line ASE which is available on Windows Web Apps (which use iisnode).
+            if (error.code === 'EADDRINUSE') {
+                if (this.warnIfPipeUnavailable) {
+                    console.warn('NamedPipeServer is not connected:');
+                    console.warn(error.message);
+                }
+            }
+
+            // Unhandled rejection error.
+            Promise.reject(error);
+        });
 
         const { PipePath, ServerIncomingPath, ServerOutgoingPath } = NamedPipeTransport;
         const incomingPipeName = PipePath + this._baseName + ServerIncomingPath;

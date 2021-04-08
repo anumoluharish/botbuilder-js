@@ -32,13 +32,13 @@ export class PayloadReceiver {
      *
      * @param receiver The [ITransportReceiver](xref:botframework-streaming.ITransportReceiver) object to pull incoming data from.
      */
-    public connect(receiver: ITransportReceiver): void {
+    public connect(receiver: ITransportReceiver): Promise<void> {
         if (this.isConnected) {
             throw new Error('Already connected.');
         } else {
             this._receiver = receiver;
             this.isConnected = true;
-            this.runReceive();
+            return this.runReceive();
         }
     }
 
@@ -84,8 +84,8 @@ export class PayloadReceiver {
     /**
      * @private
      */
-    private runReceive(): void {
-        this.receivePackets().catch();
+    private runReceive(): Promise<void> {
+        return this.receivePackets().catch();
     }
 
     /**

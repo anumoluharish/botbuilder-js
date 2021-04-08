@@ -79,13 +79,17 @@ export class NamedPipeServer implements IStreamingTransportServer {
             this.disconnect();
         }
 
+        const { PipePath, ServerIncomingPath, ServerOutgoingPath } = NamedPipeTransport;
+        const incomingPipeName = PipePath + this._baseName + ServerIncomingPath;
+        const outgoingPipeName = PipePath + this._baseName + ServerOutgoingPath;
+
         const incoming = new Promise<void>((resolve, reject) => {
             this._incomingServer = createNodeServer((socket: INodeSocket): void => {
-                this._receiver.connect(new NamedPipeTransport(socket));
-                resolve();
+                this._receiver.connect(new NamedPipeTransport(socket)).then(resolve, reject);
             });
 
-            this._incomingServer.on('error', reject);
+            this._incomingServer.once('error', reject);
+            this._incomingServer.listen(incomingPipeName);
         });
 
         const outgoing = new Promise<void>((resolve, reject) => {
@@ -94,14 +98,17 @@ export class NamedPipeServer implements IStreamingTransportServer {
                 resolve();
             });
 
-            this._outgoingServer.on('error', reject);
+            this._outgoingServer.once('error', reject);
+            this._outgoingServer.listen(outgoingPipeName);
         });
 
         // These promises will only resolve when the underlying connection has terminated.
         // Anything awaiting on them will be blocked for the duration of the session,
         // which is useful when detecting premature terminations, but requires an unawaited
         // promise during the process of establishing the connection.
-        Promise.all([incoming, outgoing]).catch((error) => {
+        try {
+            await Promise.all([incoming, outgoing]);
+        } catch (error) {
             // When iisnode spins up multiple node processes, they will attempt to connect to the same Named Pipe.
             // The Named Pipe is already in use by the first running node process, which will throw a EADDRINUSE error.
             // If this.warnIfPipeUnavailable is true, write to the console instead of rethrowing the error.
@@ -112,18 +119,10 @@ export class NamedPipeServer implements IStreamingTransportServer {
                     console.warn('NamedPipeServer is not connected:');
                     console.warn(error.message);
                 }
+            } else {
+                throw error;
             }
-
-            // Unhandled rejection error.
-            Promise.reject(error);
-        });
-
-        const { PipePath, ServerIncomingPath, ServerOutgoingPath } = NamedPipeTransport;
-        const incomingPipeName = PipePath + this._baseName + ServerIncomingPath;
-        const outgoingPipeName = PipePath + this._baseName + ServerOutgoingPath;
-
-        this._incomingServer.listen(incomingPipeName);
-        this._outgoingServer.listen(outgoingPipeName);
+        }
 
         return 'connected';
     }

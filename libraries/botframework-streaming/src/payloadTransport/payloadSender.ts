@@ -37,6 +37,13 @@ export class PayloadSender {
      * @param sender The transport sender to connect this payload sender to.
      */
     public connect(sender: ITransportSender): void {
+        if (this.isConnected) {
+            // IMPORTANT - Remove.
+            console.error('NamedPipeConnectionDebugging - PayloadSender.connect() should have thrown the "Already connected." error.');
+            // throw new Error('Already connected.');
+        } else {
+            console.log('NamedPipeConnectionDebugging - PayloadSender connecting to new transport.');
+        }
         this.sender = sender;
     }
 
@@ -45,7 +52,7 @@ export class PayloadSender {
      *
      * @param header The header to attach to the outgoing payload.
      * @param payload The stream of buffered data to send.
-     * @param sentCalback The function to execute when the send has completed.
+     * @param sentCallback The function to execute when the send has completed.
      */
     public sendPayload(header: IHeader, payload?: SubscribableStream, sentCallback?: () => Promise<void>): void {
         const packet: ISendPacket = { header, payload, sentCallback };

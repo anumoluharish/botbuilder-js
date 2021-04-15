@@ -41,7 +41,8 @@ export class NamedPipeServer implements IStreamingTransportServer {
         baseName: string,
         requestHandler?: RequestHandler,
         autoReconnect = true,
-        private readonly warnIfPipeUnavailable = false) {
+        private readonly warnIfPipeUnavailable = false
+    ) {
         if (!baseName) {
             throw new TypeError('NamedPipeServer: Missing baseName parameter');
         }
@@ -114,13 +115,15 @@ export class NamedPipeServer implements IStreamingTransportServer {
             // If this.warnIfPipeUnavailable is true, write to the console instead of rethrowing the error.
             // The BotFrameworkAdapter configures its NamedPipeServer to warn instead of throw as the only official
             // Named Pipe usage is for Direct Line ASE which is available on Windows Web Apps (which use iisnode).
-            if (error.code === 'EADDRINUSE') {
-                if (this.warnIfPipeUnavailable) {
-                    console.warn('NamedPipeServer is not connected:');
-                    console.warn(error.message);
-                }
+            if (this.warnIfPipeUnavailable && (error.code === 'EADDRINUSE' || error.message === 'Already connected.')) {
+                // Remove 'NamedPipeConnectionDebugging - '
+                console.warn('NamedPipeConnectionDebugging - NamedPipeServer is not connected:');
+                console.warn(error);
             } else {
-                throw error;
+                // IMPORTANT - Remove console calls
+                console.warn('NamedPipeConnectionDebugging - Unexpected error message:');
+                console.error(error);
+                // throw error;
             }
         }
 

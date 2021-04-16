@@ -39,11 +39,14 @@ export class PayloadSender {
     public connect(sender: ITransportSender): void {
         if (this.isConnected) {
             // IMPORTANT - Remove.
-            console.error('NamedPipeConnectionDebugging - PayloadSender.connect() should have thrown the "Already connected." error.');
+            console.error(
+                'NamedPipeConnectionDebugging - PayloadSender.connect() should have thrown the "Already connected." error.'
+            );
             // throw new Error('Already connected.');
         } else {
             console.log('NamedPipeConnectionDebugging - PayloadSender connecting to new transport.');
         }
+
         this.sender = sender;
     }
 
@@ -75,9 +78,6 @@ export class PayloadSender {
         }
     }
 
-    /**
-     * @private
-     */
     private writePacket(packet: ISendPacket): void {
         try {
             if (packet.header.payloadLength > 0 && packet.payload) {

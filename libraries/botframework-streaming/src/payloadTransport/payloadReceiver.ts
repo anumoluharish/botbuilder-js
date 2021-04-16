@@ -15,9 +15,6 @@ import { ITransportReceiver } from '../interfaces/ITransportReceiver';
 import { IHeader } from '../interfaces/IHeader';
 import { INodeBuffer } from '../interfaces/INodeBuffer';
 
-// IMPORTANT - All NamedPipeTransport references must be removed.
-import { NamedPipeTransport } from '../namedPipe/namedPipeTransport';
-
 /**
  * Payload receiver for streaming.
  */
@@ -35,28 +32,25 @@ export class PayloadReceiver {
      *
      * @param receiver The [ITransportReceiver](xref:botframework-streaming.ITransportReceiver) object to pull incoming data from.
      */
-    public connect(receiver: ITransportReceiver): Promise<void> {
+    public async connect(receiver: ITransportReceiver): Promise<void> {
         console.log('NamedPipeConnectionDebugging - PayloadReceiver.connect() called.');
-
-        if (this._receiver) {
-            if (this._receiver instanceof NamedPipeTransport) {
-                if (receiver instanceof NamedPipeTransport) {
-                    console.error('NamedPipeConnectionDebugging - Already connected to NamedPipeTransport.');
-                } else {
-                    console.error('NamedPipeConnectionDebugging - WebSocketTransport passed in. Already connected to NamedPipeTransport.');
-                }
-            }
-        }
 
         if (this.isConnected) {
             // IMPORTANT - Remove.
-            console.error('NamedPipeConnectionDebugging - PayloadReceiver.connect() should have thrown the "Already connected." error.');
+            console.error(
+                'NamedPipeConnectionDebugging - PayloadReceiver.connect() should have thrown the "Already connected." error.'
+            );
             // throw new Error('Already connected.');
-        } else {
-            console.log('NamedPipeConnectionDebugging - PayloadReceiver connecting to new transport.');
-            this._receiver = receiver;
-            this.isConnected = true;
-            return this.runReceive();
+        }
+
+        console.log('NamedPipeConnectionDebugging - PayloadReceiver connecting to new transport.');
+        this._receiver = receiver;
+        this.isConnected = true;
+
+        try {
+            await this.runReceive();
+        } finally {
+            console.log('NamedPipeConnectionDebugging - PayloadReceiver.connect() completed.');
         }
     }
 
@@ -99,18 +93,16 @@ export class PayloadReceiver {
         }
     }
 
-    /**
-     * @private
-     */
-    private runReceive(): Promise<void> {
-        return this.receivePackets().catch();
+    private async runReceive(): Promise<void> {
+        try {
+            await this.receivePackets();
+        } catch (err) {
+            console.error('NamedPipeConnectionDebugging - PayloadReceiver.runReceive() error', err);
+        }
     }
 
-    /**
-     * @private
-     */
     private async receivePackets(): Promise<void> {
-        let isClosed;
+        let isClosed: boolean;
 
         while (this.isConnected && !isClosed) {
             try {

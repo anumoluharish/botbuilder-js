@@ -5,6 +5,7 @@ import * as t from 'runtypes';
 import fs from 'fs';
 import path from 'path';
 import { Configuration } from './configuration';
+import { functionalBotComponent } from './functionalBotComponent';
 
 import LuisBotComponent from 'botbuilder-ai-luis';
 import QnAMakerBotComponent from 'botbuilder-ai-qna';
@@ -53,6 +54,8 @@ import {
     UserState,
     assertBotComponent,
 } from 'botbuilder';
+
+export { Configuration, functionalBotComponent };
 
 function addFeatures(services: ServiceCollection, configuration: Configuration): void {
     services.composeFactory<
@@ -496,5 +499,3 @@ export async function getRuntimeServices(
 
     return [services, configuration];
 }
-
-export { Configuration };
